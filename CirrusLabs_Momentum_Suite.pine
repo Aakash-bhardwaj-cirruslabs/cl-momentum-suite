@@ -1,0 +1,244 @@
+// =============================================================================
+// CirrusLabs Momentum Suite
+// Version : 1.0.0
+// Platform : TradingView — Pine Script v5
+// Market   : Crypto / Equities (optimised for BTC/USDT, ETH/USDT on 4H)
+// Signal   : EMA 21/55 crossover  +  RSI(14) confirmation  +  ATR volatility gate
+// Copy-paste ready — no external dependencies
+// =============================================================================
+//@version=5
+indicator(
+     title     = "CirrusLabs Momentum Suite",
+     shorttitle = "CL·MS",
+     overlay   = true,
+     max_labels_count = 500,
+     max_lines_count  = 100
+ )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. INPUTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// — EMA —
+grpEma = "EMA Settings"
+emaFastLen  = input.int(21,  "Fast EMA Length",  minval=1,  group=grpEma)
+emaSlowLen  = input.int(55,  "Slow EMA Length",  minval=1,  group=grpEma)
+showCloud   = input.bool(true, "Show EMA Cloud",  group=grpEma)
+
+// — RSI —
+grpRsi = "RSI Settings"
+useRsiFilter = input.bool(true,  "Enable RSI Filter",  group=grpRsi)
+rsiLen       = input.int(14,     "RSI Length",         minval=1, group=grpRsi)
+rsiMidline   = input.int(50,     "RSI Midline",        minval=1, maxval=99, group=grpRsi)
+
+// — ATR —
+grpAtr = "ATR Volatility Gate"
+useAtrFilter = input.bool(true, "Enable ATR Filter",   group=grpAtr)
+atrLen       = input.int(14,    "ATR Length",          minval=1, group=grpAtr)
+atrSmaLen    = input.int(20,    "ATR SMA Length",      minval=1, group=grpAtr)
+
+// — Visuals —
+grpVis = "Visual Settings"
+showBgColor  = input.bool(true,  "Highlight Signal Bars", group=grpVis)
+colLong      = input.color(color.new(#26a69a, 0),  "Long Colour",  group=grpVis)
+colShort     = input.color(color.new(#ef5350, 0),  "Short Colour", group=grpVis)
+colCloudBull = input.color(color.new(#26a69a, 80), "Cloud Bull",   group=grpVis)
+colCloudBear = input.color(color.new(#ef5350, 80), "Cloud Bear",   group=grpVis)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. CORE CALCULATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// EMAs
+ema21 = ta.ema(close, emaFastLen)
+ema55 = ta.ema(close, emaSlowLen)
+
+// RSI
+rsiVal = ta.rsi(close, rsiLen)
+
+// ATR & its SMA
+atrVal    = ta.atr(atrLen)
+atrSmaVal = ta.sma(atrVal, atrSmaLen)
+
+// Trend direction (fast above slow = bullish)
+isBull = ema21 > ema55
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. SIGNAL LOGIC  (all three layers must agree)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Raw cross triggers
+rawLong  = ta.crossover(ema21, ema55)
+rawShort = ta.crossunder(ema21, ema55)
+
+// RSI gate  (skip when filter disabled)
+rsiLongOk  = useRsiFilter ? rsiVal >= rsiMidline : true
+rsiShortOk = useRsiFilter ? rsiVal <= rsiMidline : true
+
+// ATR gate  (skip when filter disabled)
+atrOk = useAtrFilter ? atrVal > atrSmaVal : true
+
+// Final signals
+longSignal  = rawLong  and rsiLongOk  and atrOk
+shortSignal = rawShort and rsiShortOk and atrOk
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. EMA PLOTS & CLOUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+p21 = plot(
+     ema21,
+     title     = "EMA 21",
+     color     = isBull ? colLong : colShort,
+     linewidth = 2
+ )
+
+p55 = plot(
+     ema55,
+     title     = "EMA 55",
+     color     = isBull ? color.new(colLong, 40) : color.new(colShort, 40),
+     linewidth = 1
+ )
+
+fill(
+     p21, p55,
+     color = showCloud ? (isBull ? colCloudBull : colCloudBear) : na,
+     title = "EMA Cloud"
+ )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. SIGNAL MARKERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+plotshape(
+     longSignal,
+     title    = "Long Signal",
+     style    = shape.triangleup,
+     location = location.belowbar,
+     color    = colLong,
+     size     = size.normal,
+     text     = "▲ LONG",
+     textcolor = color.white
+ )
+
+plotshape(
+     shortSignal,
+     title    = "Short Signal",
+     style    = shape.triangledown,
+     location = location.abovebar,
+     color    = colShort,
+     size     = size.normal,
+     text     = "▼ SHORT",
+     textcolor = color.white
+ )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. BAR BACKGROUND HIGHLIGHT
+// ─────────────────────────────────────────────────────────────────────────────
+
+bgcolor(
+     showBgColor and longSignal  ? color.new(colLong,  85) :
+     showBgColor and shortSignal ? color.new(colShort, 85) : na,
+     title = "Signal Bar Highlight"
+ )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. INFO TABLE  (top-right, 7 rows)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Persist last signal direction across bars
+var string lastSignalStr = "—"
+if longSignal
+    lastSignalStr := "▲ LONG"
+else if shortSignal
+    lastSignalStr := "▼ SHORT"
+
+// Build table once; update cells every bar
+var table infoTbl = table.new(
+     position.top_right, 2, 8,
+     bgcolor       = color.new(#1e222d, 10),
+     border_color  = color.new(#434651, 80),
+     border_width  = 1,
+     frame_color   = color.new(#434651, 60),
+     frame_width   = 1
+ )
+
+// Helper: coloured cell
+tblCell(tbl, col, row, txt, bg, fg) =>
+    table.cell(tbl, col, row, txt,
+         bgcolor    = bg,
+         text_color = fg,
+         text_size  = size.small
+     )
+
+if barstate.islast
+    // Header
+    tblCell(infoTbl, 0, 0, "CirrusLabs Momentum Suite",
+         color.new(#2962ff, 0), color.white)
+    table.merge_cells(infoTbl, 0, 0, 1, 0)
+
+    // Row labels
+    tblCell(infoTbl, 0, 1, "Trend",        color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+    tblCell(infoTbl, 0, 2, "RSI(14)",      color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+    tblCell(infoTbl, 0, 3, "ATR(14)",      color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+    tblCell(infoTbl, 0, 4, "Vol Filter",   color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+    tblCell(infoTbl, 0, 5, "Last Signal",  color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+    tblCell(infoTbl, 0, 6, "Timeframe",    color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+    tblCell(infoTbl, 0, 7, "EMA 21 / 55",  color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+
+    // Row values
+    trendBg   = isBull ? color.new(#26a69a, 70) : color.new(#ef5350, 70)
+    trendTxt  = isBull ? "BULLISH ▲" : "BEARISH ▼"
+    tblCell(infoTbl, 1, 1, trendTxt, trendBg, color.white)
+
+    rsiBg  = rsiVal >= rsiMidline ? color.new(#26a69a, 70) : color.new(#ef5350, 70)
+    tblCell(infoTbl, 1, 2, str.tostring(rsiVal, "#.##"), rsiBg, color.white)
+
+    tblCell(infoTbl, 1, 3, str.tostring(atrVal, "#.####"),
+         color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+
+    volBg  = atrOk ? color.new(#26a69a, 70) : color.new(#ef5350, 70)
+    volTxt = atrOk ? "ACTIVE" : "QUIET"
+    tblCell(infoTbl, 1, 4, volTxt, volBg, color.white)
+
+    sigBg  = lastSignalStr == "▲ LONG"  ? color.new(#26a69a, 70) :
+             lastSignalStr == "▼ SHORT" ? color.new(#ef5350, 70) :
+             color.new(#2a2e39, 0)
+    sigFg  = lastSignalStr == "—" ? color.new(#b2b5be, 0) : color.white
+    tblCell(infoTbl, 1, 5, lastSignalStr, sigBg, sigFg)
+
+    tblCell(infoTbl, 1, 6, timeframe.period,
+         color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+
+    emaTxt = str.tostring(ema21, "#.##") + " / " + str.tostring(ema55, "#.##")
+    tblCell(infoTbl, 1, 7, emaTxt,
+         color.new(#2a2e39, 0), color.new(#b2b5be, 0))
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. ALERT CONDITIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+alertcondition(
+     longSignal,
+     title   = "CL·MS — Long Signal",
+     message = "CirrusLabs Momentum Suite | LONG\nTicker: {{ticker}} | TF: {{interval}}\nClose: {{close}} | RSI: " +
+               str.tostring(rsiVal, "#.##") +
+               " | ATR: " + str.tostring(atrVal, "#.######") +
+               "\nEMA21 crossed above EMA55 with RSI & ATR confirmation."
+ )
+
+alertcondition(
+     shortSignal,
+     title   = "CL·MS — Short Signal",
+     message = "CirrusLabs Momentum Suite | SHORT\nTicker: {{ticker}} | TF: {{interval}}\nClose: {{close}} | RSI: " +
+               str.tostring(rsiVal, "#.##") +
+               " | ATR: " + str.tostring(atrVal, "#.######") +
+               "\nEMA21 crossed below EMA55 with RSI & ATR confirmation."
+ )
+
+// =============================================================================
+// END OF SCRIPT
+// Recommended pair : BTC/USDT or ETH/USDT · Timeframe : 4H
+// Usage            : Pine Editor → paste → Add to chart
+//                    Right-click indicator → Add alert → pick CL·MS Long/Short
+// =============================================================================

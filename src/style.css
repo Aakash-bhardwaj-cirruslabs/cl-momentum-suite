@@ -1,0 +1,176 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #131722;
+  --panel:    #1e222d;
+  --border:   #2a2e39;
+  --text:     #d1d4dc;
+  --muted:    #787b86;
+  --long:     #26a69a;
+  --short:    #ef5350;
+  --accent:   #2962ff;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+#header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.logo {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.title {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+#stats {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.stat { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.stat b { color: var(--text); }
+
+/* ── Chart wrap: takes all remaining space above legend ── */
+#chart-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  /* overflow must NOT be hidden — it collapses flex children that have no
+     explicit height yet; the canvases are sized imperatively by sizeCanvases() */
+  overflow: visible;
+}
+
+/* Canvas elements are inline by default which adds a 4px descender gap;
+   make them block so they stack flush inside the flex column */
+#price-canvas {
+  display: block;
+  width: 100%;
+  /* height is set imperatively; give it a non-zero floor so the browser
+     doesn't collapse it before JS runs */
+  min-height: 200px;
+}
+
+#rsi-canvas {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Legend ── */
+#legend {
+  display: flex;
+  gap: 16px;
+  padding: 4px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  height: 28px;
+  min-height: 28px;
+  align-items: center;
+}
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Signal log ── */
+#signal-log {
+  overflow-y: auto;
+  flex: 0 0 auto;
+  max-height: 200px;
+  background: var(--bg);
+}
+.log-header {
+  padding: 5px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+thead th {
+  padding: 4px 12px;
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 26px;
+  z-index: 1;
+}
+tbody td {
+  padding: 4px 12px;
+  border-bottom: 1px solid rgba(42,46,57,0.5);
+  color: var(--text);
+}
+.long-row:hover  td { background: rgba(38,166,154,0.06); }
+.short-row:hover td { background: rgba(239,83,80,0.06); }
+
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-long  { background: rgba(38,166,154,0.2); color: var(--long); }
+.badge-short { background: rgba(239,83,80,0.2);  color: var(--short); }

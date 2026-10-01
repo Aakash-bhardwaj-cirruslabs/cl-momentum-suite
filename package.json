@@ -1,0 +1,17 @@
+{
+  "name": "cl-momentum-suite",
+  "version": "1.0.0",
+  "description": "CirrusLabs Momentum Suite — EMA/RSI/ATR indicator visualiser",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port $PORT --host 0.0.0.0"
+  },
+  "dependencies": {
+    "lightweight-charts": "^4.1.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
